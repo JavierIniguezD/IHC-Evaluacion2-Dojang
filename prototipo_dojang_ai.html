@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dojang AI - Planificador</title>
+    <style>
+        /* === VARIABLES & TEMA OSCURO === */
+        :root {
+            --bg-dark: #0f172a;       /* Fondo principal */
+            --bg-surface: #1e293b;    /* Tarjetas y selectores */
+            --bg-surface-hover: #334155; 
+            --border: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --brand-color: #6366f1;   /* Morado / Azul */
+            --brand-text: #818cf8;
+            --action-btn: #22c55e;    /* Verde brillante (Alto contraste) */
+            --action-btn-hover: #16a34a;
+            --danger-bg: #ef4444;     /* Rojo para eliminar */
+        }
+
+        /* === RESET & ESTRUCTURA MOBILE-FIRST === */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        /* Contenedor simulando el celular */
+        .device-container {
+            width: 100%;
+            height: 100vh;
+            max-width: 420px;
+            background-color: var(--bg-dark);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Borde en pantallas grandes para simular celular */
+        @media (min-width: 421px) {
+            .device-container {
+                height: 850px;
+                border-radius: 36px;
+                border: 8px solid #222;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            }
+        }
+
+        /* Manejo de Vistas (Pantallas) */
+        .screen {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-bottom: 90px;
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* === PANTALLA 1: GENERADOR === */
+        header {
+            padding: 24px 24px 16px;
+        }
+        
+        header h1 {
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .input-group {
+            padding: 16px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .input-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Estilo Select */
+        select.dropdown {
+            width: 100%;
+            background-color: var(--bg-surface);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            outline: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px top 50%;
+            background-size: 12px auto;
+        }
+
+        /* Smart Chips */
+        .chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chip {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 10px 18px;
+            border-radius: 24px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .chip.selected {
+            background-color: var(--brand-color);
+            border-color: var(--brand-color);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        /* Barra Inferior y Botón Alto Contraste */
+        .bottom-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 24px;
+            background: linear-gradient(to top, var(--bg-dark) 60%, transparent);
+            z-index: 50;
+        }
+
+        .btn-primary {
+            width: 100%;
+            background-color: var(--action-btn);
+            color: #000;
+            font-size: 18px;
+            font-weight: 700;
+            border: none;
+            padding: 18px;
+            border-radius: 16px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(34, 197, 94, 0.3);
+            transition: transform 0.1s, background-color 0.2s;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.96);
+            background-color: var(--action-btn-hover);
+        }
+
+        /* === PANTALLA 2 & 3: LINEA DE TIEMPO === */
+        .navbar {
+            display: flex;
+            align-items: center;
+            padding: 16px 24px;
+            background-color: var(--bg-dark);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            gap: 16px;
+        }
+
+        .btn-back {
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 28px;
+            cursor: pointer;
+            line-height: 1;
+            padding-bottom: 4px;
+        }
+
+        .navbar h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .timeline {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Estructura Tarjetas (Swipe y Normal) */
+        .card-container {
+            position: relative;
+            border-radius: 16px;
+            background-color: var(--danger-bg); /* Fondo rojo base */
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .delete-icon {
+            position: absolute;
+            right: 24px;
+            font-size: 22px;
+            color: #fff;
+        }
+
+        .card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            width: 100%;
+            padding: 18px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 10;
+            transition: transform 0.3s ease;
+        }
+
+        /* Estado Visual de Swipe (Manipulación) */
+        .card.swiped {
+            transform: translateX(-75px);
+        }
+
+        .card-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .card-time {
+            font-size: 13px;
+            color: var(--brand-text);
+            font-weight: 500;
+        }
+
+        .btn-wand {
+            background-color: rgba(99, 102, 241, 0.15);
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-wand:active {
+            background-color: rgba(99, 102, 241, 0.3);
+        }
+
+        /* === MODAL BOTTOM SHEET (IA AJUSTES) === */
+        .modal-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 100;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .bottom-sheet {
+            position: absolute;
+            bottom: -100%;
+            left: 0;
+            width: 100%;
+            background-color: var(--bg-surface);
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: bottom 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+        }
+
+        .modal-overlay.active .bottom-sheet {
+            bottom: 0;
+        }
+
+        .sheet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .sheet-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .sheet-option {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border);
+            padding: 16px;
+            border-radius: 12px;
+            color: var(--text-main);
+            font-size: 15px;
+            font-weight: 500;
+            text-align: left;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .sheet-option:active {
+            background-color: var(--bg-surface-hover);
+        }
+
+        /* Utilidad para animaciones de swipe JS */
+        .swipe-transition {
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="device-container">
+
+        <!-- ============================================== -->
+        <!-- PANTALLA 1: Input Paramétrico                  -->
+        <!-- ============================================== -->
+        <div id="pantalla1" class="screen active">
+            <header>
+                <h1>Generador de Clase</h1>
+            </header>
+
+            <div class="input-group">
+                <span class="input-label">Plantilla</span>
+                <select class="dropdown">
+                    <option>Clase Formativa 60 min</option>
+                    <option>Taller Extraprogramático 45 min</option>
+                    <option>Entrenamiento Avanzado 90 min</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <span class="input-label">Edad</span>
+                <div class="chips-container" id="chips-edad">
+                    <div class="chip selected" onclick="toggleSingleChip(this)">5-10 años</div>
+                    <div class="chip" onclick="toggleSingleChip(this)">11-15 años</div>
+                    <div class="chip" onclick="toggleSingleChip(this)">Adultos</div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <span class="input-label">Implementos</span>
+                <div class="chips-container">
+                    <div class="chip selected" onclick="toggleMultiChip(this)">Paletas</div>
+                    <div class="chip" onclick="toggleMultiChip(this)">Escudos</div>
+                    <div class="chip" onclick="toggleMultiChip(this)">Aros</div>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-bottom: 80px;">
+                <span class="input-label">Foco</span>
+                <div class="chips-container" id="chips-foco">
+                    <div class="chip" onclick="toggleSingleChip(this)">Poomsae</div>
+                    <div class="chip" onclick="toggleSingleChip(this)">Combate</div>
+                    <div class="chip selected" onclick="toggleSingleChip(this)">Físico</div>
+                </div>
+            </div>
+
+            <div class="bottom-bar">
+                <button class="btn-primary" onclick="navegarA('pantalla2')">Generar Entrenamiento</button>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- PANTALLA 2: Línea de Tiempo y Resultados       -->
+        <!-- ============================================== -->
+        <div id="pantalla2" class="screen">
+            <div class="navbar">
+                <button class="btn-back" onclick="navegarA('pantalla1')">‹</button>
+                <h2>Clase Generada</h2>
+            </div>
+
+            <div class="timeline" style="padding-bottom: 100px;">
+                
+                <!-- Tarjeta 1: Normal + Varita para Modal -->
+                <div class="card-container" style="background: transparent;">
+                    <div class="card">
+                        <div class="card-content">
+                            <span class="card-title">Calentamiento Lúdico</span>
+                            <span class="card-time">15 minutos</span>
+                        </div>
+                        <button class="btn-wand" onclick="abrirModal()">🪄</button>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 2: ARRISTRABLE (Swipe-to-delete real con JS) -->
+                <div class="card-container">
+                    <div class="delete-icon">🗑️</div>
+                    <div class="card swipe-transition" id="swipe-card">
+                        <div class="card-content">
+                            <span class="card-title">Técnica con Paletas</span>
+                            <span class="card-time">25 minutos</span>
+                        </div>
+                        <button class="btn-wand" onclick="abrirModal()">🪄</button>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 3: Normal -->
+                <div class="card-container" style="background: transparent;">
+                    <div class="card">
+                        <div class="card-content">
+                            <span class="card-title">Combate Olla de Presión</span>
+                            <span class="card-time">20 minutos</span>
+                        </div>
+                        <button class="btn-wand" onclick="abrirModal()">🪄</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bottom-bar">
+                <button class="btn-primary" onclick="alert('Cronómetro iniciado')">Iniciar Cronómetro</button>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- PANTALLA 3: Modal Bottom Sheet (Ajuste IA)     -->
+        <!-- ============================================== -->
+        <div id="modal-ia" class="modal-overlay" onclick="cerrarModal(event)">
+            <div class="bottom-sheet" onclick="event.stopPropagation()">
+                <div class="sheet-header">
+                    <span class="sheet-title">✨ Ajuste Asistido por IA</span>
+                    <button class="close-btn" onclick="cerrarModal()">&times;</button>
+                </div>
+                <button class="sheet-option" onclick="cerrarModal()">⚡ Generar variante más intensa</button>
+                <button class="sheet-option" onclick="cerrarModal()">🎲 Generar variante más lúdica</button>
+                <button class="sheet-option" onclick="cerrarModal()">🔄 Cambiar implemento</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- === LÓGICA JAVASCRIPT === -->
+    <script>
+        // Navegación entre pantallas
+        function navegarA(idPantalla) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(idPantalla).classList.add('active');
+        }
+
+        // Lógica de Smart Chips (Selección Única - Edad, Foco)
+        function toggleSingleChip(element) {
+            const container = element.parentElement;
+            Array.from(container.children).forEach(chip => chip.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
+        // Lógica de Smart Chips (Selección Múltiple - Implementos)
+        function toggleMultiChip(element) {
+            element.classList.toggle('selected');
+        }
+
+        // PANTALLA 3: Lógica Modal Bottom Sheet
+        const modalIA = document.getElementById('modal-ia');
+
+        function abrirModal() {
+            modalIA.classList.add('active');
+        }
+
+        function cerrarModal(event) {
+            // Si el evento existe y el target no es el overlay (es decir, clic dentro del sheet), no cerrar a menos que sea un botón.
+            modalIA.classList.remove('active');
+        }
+
+        // PANTALLA 2: Lógica REAL de Swipe-to-Delete
+        const swipeCard = document.getElementById('swipe-card');
+        let startX = 0;
+        let currentX = 0;
+        let isDragging = false;
+        const maxSwipe = -80; // Píxeles máximos hacia la izquierda
+
+        // Soporte para Mouse
+        swipeCard.addEventListener('mousedown', dragStart);
+        window.addEventListener('mousemove', dragMove);
+        window.addEventListener('mouseup', dragEnd);
+
+        // Soporte para Touch (Móviles)
+        swipeCard.addEventListener('touchstart', dragStart, {passive: true});
+        window.addEventListener('touchmove', dragMove, {passive: false});
+        window.addEventListener('touchend', dragEnd);
+
+        function dragStart(e) {
+            // No iniciar swipe si se hizo clic en el botón de la varita
+            if(e.target.closest('.btn-wand')) return;
+            
+            startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            isDragging = true;
+            
+            // Quitar transición para que siga el dedo instantáneamente
+            swipeCard.classList.remove('swipe-transition');
+        }
+
+        function dragMove(e) {
+            if (!isDragging) return;
+            
+            const x = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            currentX = x - startX;
+
+            // Solo permitir deslizar hacia la izquierda
+            if (currentX < 0) {
+                // Limitar el arrastre visual a un poco más del máximo para efecto "goma"
+                let visualX = currentX > (maxSwipe - 30) ? currentX : (maxSwipe - 30);
+                swipeCard.style.transform = `translateX(${visualX}px)`;
+            }
+        }
+
+        function dragEnd(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            // Devolver la clase de transición para suavizar el "snap"
+            swipeCard.classList.add('swipe-transition');
+
+            // Si pasó la mitad del umbral, dejar abierto, si no, cerrar
+            if (currentX < maxSwipe / 2) {
+                swipeCard.style.transform = `translateX(${maxSwipe}px)`;
+            } else {
+                swipeCard.style.transform = `translateX(0px)`;
+            }
+            
+            currentX = 0;
+        }
+    </script>
+</body>
+</html>
